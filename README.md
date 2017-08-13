@@ -11,9 +11,5 @@ Not exactly. Yes, we use code written by cookkkie from Mee6, but we've also adde
 - [flask](http://flask.pocoo.org)
 - [Docker](https://www.docker.com/)
 
-## Are you apart of the Mee6 team? !
-
-If you're apart of the Mee6 team, and you'd like this bot removed from GitHub & shutdown, no problem! Just message me: DidUJustHitDat#4778 on discord. I'd be more than happy to remove it if you want me to.
-
-This is not affiliated with [adult swim], cookkkie, Mee6 or Discord.
-All code with the: I've turned myself into a discord bot morty isn't coded by me, and is 100% coded by members of the Mee6 team (copyright Cookkkiem, 2016) but anything with another commit name, was coded by me.
+## Want this bot removed?
+If you're a member or work for the Mee6 team & would like this removed, please message me.
