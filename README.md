@@ -1,15 +1,10 @@
-# Mee6 : The Discord bot
+# PickleRi6: The Mee6(https://github.com/cookkkie/mee6) Fork.
 ![Mee6](http://mee6.xyz/static/img/meeseeks.png)
 
-## What is it?
-Mee6 is a Discord bot that lets you easily add your own commands to your server
-through a user-friendly dashboard. But this is just one of the numerous features 
-of this bot.
+## So, this is a Mee6 copy?
+Not exactly. Yes, we use code written by cookkkie from Mee6, but we've also added in our own features. 
 
-## Testimonials (OMG OMG OMG...)
-![Jason](http://i.imgur.com/sXXQy61.png)
-
-## Mee6 uses and loves
+## Mee6/PickleRi6 uses:
 
 - [discord.py](https://github.com/Rapptz/discord.py)
 - [discord.ie](https://github.com/qeled/discordie)
@@ -17,10 +12,9 @@ of this bot.
 - [flask](http://flask.pocoo.org)
 - [Docker](https://www.docker.com/)
 
-## How to contribute !
+## Are you apart of the Mee6 team? !
 
-If you want to create a plugin for the bot, do not hesitate to contact me in 
-[Mee6's discord server](https://discord.gg/mee6) :wink:.
+If you're apart of the Mee6 team, and you'd like this bot removed from GitHub & shutdown, no problem! Just message me: DidUJustHitDat#4778 on discord. I'd be more than happy to remove it if you want me to.
 
-You have to be at least a little bit familiar with **asyncio** python library 
-and with python in general.
+This is not affiliated with [adult swim], cookkkie, Mee6 or Discord.
+All code with the: I've turned myself into a discord bot morty isn't coded by me, and is 100% coded by members of the Mee6 team (copyright Cookkkiem, 2016) but anything with another commit name, was coded by me.
