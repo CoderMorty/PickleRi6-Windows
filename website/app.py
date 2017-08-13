@@ -43,11 +43,6 @@ db = redis.Redis.from_url(REDIS_URL, decode_responses=True)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 mongo = pymongo.MongoClient(MONGO_URL)
 
-def strip(arg):
-    if type(arg) == list:
-        return [strip(e) for e in arg]
-    return arg.strip()
-
 """
     JINJA2 Filters
 """
@@ -414,8 +409,7 @@ def debug_token():
 def select_server():
     guild_id = request.args.get('guild_id')
     if guild_id:
-        return redirect(url_for('dashboard', server_id=int(guild_id),
-                                force=1))
+        return redirect(url_for('dashboard', server_id=int(guild_id)))
 
     user = get_user(session['api_token'])
     if not user:
@@ -442,11 +436,10 @@ def get_invite_link(server_id):
 def server_check(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if request.args.get('force'):
-            return f(*args, **kwargs)
-
         server_id = kwargs.get('server_id')
-        if not db.sismember('servers', server_id):
+        server_ids = db.smembers('servers')
+
+        if str(server_id) not in server_ids:
             url = get_invite_link(server_id)
             return redirect(url)
 
@@ -495,17 +488,14 @@ def plugin_page(plugin_name, buff=None):
                 not_buff = db.get('buffs:'+str(server_id)+':'+buff) is None
                 if not_buff:
                     db.srem('plugins:{}'.format(server_id), plugin_name)
-                    db.srem('plugin.{}.guilds'.format(plugin_name), server_id)
                     return redirect(url_for('shop', server_id=server_id))
 
             disable = request.args.get('disable')
             if disable:
                 db.srem('plugins:{}'.format(server_id), plugin_name)
-                db.srem('plugin.{}.guilds'.format(plugin_name), server_id)
                 return redirect(url_for('dashboard', server_id=server_id))
 
             db.sadd('plugins:{}'.format(server_id), plugin_name)
-            db.sadd('plugin.{}.guilds'.format(plugin_name), server_id)
 
             server = get_guild(server_id)
             enabled_plugins = db.smembers('plugins:{}'.format(server_id))
@@ -879,135 +869,6 @@ def delete_command(server_id, command):
     db.delete('Commands.{}:command:{}'.format(server_id, command))
     flash('Command {} deleted !'.format(command), 'success')
     return redirect(url_for('plugin_commands', server_id=server_id))
-
-"""
-    Timers Plugin
-"""
-
-from mee6.plugins import Timers
-timers = Timers(in_bot=False)
-
-@app.route('/dashboard/<int:server_id>/timers')
-@plugin_page('Timers')
-def plugin_timers(server_id):
-    _members = get_guild_members(server_id)
-    guild = get_guild(server_id)
-    guild_channels = get_guild_channels(server_id, voice=False)
-    mention_parser = get_mention_parser(server_id, _members)
-    members = typeahead_members(_members)
-    config = timers.get_config(server_id)
-
-    ts = []
-    for timer in config['timers']:
-        ts.append(timer)
-        ts[-1]['message'] = mention_parser(ts[-1]['message'])
-        ts[-1]['interval'] //= 60
-
-    return {
-        'guild_roles': guild['roles'],
-        'guild_members': members,
-        'guild_channels': guild_channels,
-        'timers': ts,
-    }
-
-
-@app.route('/dashboard/<int:server_id>/timers/add', methods=['post'])
-@plugin_method
-def add_timer(server_id):
-    interval = request.form.get('interval', '')
-    message = request.form.get('message', '')
-    channel = request.form.get('channel', '')
-    mention_decoder = get_mention_decoder(server_id)
-    message = mention_decoder(message)
-    config = timers.get_config(server_id)
-
-    cb = url_for('plugin_timers', server_id=server_id)
-
-    if len(config['timers']) >= 5:
-        flash('You cannot have more than 5 timers running', 'danger')
-        return redirect(cb)
-
-    try:
-        interval = int(interval)
-    except ValueError as e:
-        flash('The interval should be an integer number', 'danger')
-        return redirect(cb)
-
-    if interval <= 0:
-        flash('The interval should be a positive number', 'danger')
-        return redirect(cb)
-
-    if len(message) > 2000:
-        flash('The message should not be longer than 2000 characters', 'danger')
-        return redirect(cb)
-
-    if len(message) == 0:
-        flash('The message should not be empty', 'danger')
-        return redirect(cb)
-
-    t = {'channel': channel, 'interval': interval * 60,
-         'message': message}
-
-    config['timers'].append(t)
-
-    timers.patch_config(server_id, config)
-
-    flash('Timer added!', 'success')
-
-    return redirect(cb)
-
-@app.route('/dashboard/<int:server_id>/timers/<int:timer_index>/update', methods=['post'])
-@plugin_method
-def update_timer(server_id, timer_index):
-    interval = request.form.get('interval', '')
-    message = request.form.get('message', '')
-    channel = request.form.get('channel', '')
-    mention_decoder = get_mention_decoder(server_id)
-    message = mention_decoder(message)
-    config = timers.get_config(server_id)
-
-    cb = url_for('plugin_timers', server_id=server_id)
-
-    try:
-        interval = int(interval)
-    except ValueError as e:
-        flash('The interval should be an integer number', 'danger')
-        return redirect(cb)
-
-    if interval <= 0:
-        flash('The interval should be a positive number', 'danger')
-        return redirect(cb)
-
-    if len(message) > 2000:
-        flash('The message should not be longer than 2000 characters', 'danger')
-        return redirect(cb)
-
-    if len(message) == 0:
-        flash('The message should not be empty', 'danger')
-        return redirect(cb)
-
-    t = {'channel': channel, 'interval': interval * 60,
-         'message': message}
-
-    config['timers'][timer_index-1] = t
-
-    timers.patch_config(server_id, config)
-
-    flash('Timer modified!', 'success')
-
-    return redirect(cb)
-
-
-@app.route('/dashboard/<int:server_id>/commands/<int:timer_index>/delete')
-@plugin_method
-def delete_timer(server_id, timer_index):
-    config = timers.get_config(server_id)
-    del config['timers'][timer_index - 1]
-    timers.patch_config(server_id, config)
-    flash('Timer deleted!', 'success')
-    return redirect(url_for('plugin_timers', server_id=server_id))
-
-
 
 """
     Help Plugin
@@ -1444,44 +1305,97 @@ def plugin_git(server_id):
 """
 
 
-from mee6.plugins import Streamers
-streamers = Streamers(in_bot=False)
-
 @app.route('/dashboard/<int:server_id>/streamers')
 @plugin_page('Streamers')
 def plugin_streamers(server_id):
-    config = streamers.get_config(server_id)
-
-    twitch_streamers = ','.join(config.get('twitch_streamers'))
-    hitbox_streamers = ','.join(config.get('hitbox_streamers'))
-
+    streamers = db.smembers('Streamers.{}:streamers'.format(server_id))
+    #beam_streamers = db.smembers('Streamers.{}:beam_streamers'.format(
+    #    server_id))
+    hitbox_streamers = db.smembers('Streamers.{}:hitbox_streamers'.format(
+        server_id))
+    streamers = ','.join(streamers)
+    #beam_streamers = ','.join(beam_streamers)
+    hitbox_streamers = ','.join(hitbox_streamers)
+    db_announcement_channel = db.get('Streamers.{}:announcement_channel'.format(
+        server_id))
     guild_channels = get_guild_channels(server_id, voice=False)
+    announcement_channel = None
+    for channel in guild_channels:
+        if channel['name'] == db_announcement_channel \
+                or channel['id'] == db_announcement_channel:
+            announcement_channel = channel
+            break
+    announcement_msg = db.get('Streamers.{}:announcement_msg'.format(server_id))
+    if announcement_msg is None:
+        announcement_msg = "Hey @everyone! {streamer} is now"\
+            " live on {link} ! Go check it out :wink:!"
+        db.set('Streamers.{}:announcement_msg'.format(server_id),
+               announcement_msg)
 
     return {
-        'announcement_channel': config['announcement_channel'],
+        'announcement_channel': announcement_channel,
         'guild_channels': guild_channels,
-        'announcement_msg': config['announcement_message'],
-        'streamers': twitch_streamers,
+        'announcement_msg': announcement_msg,
+        'streamers': streamers,
         'hitbox_streamers': hitbox_streamers
+        #'beam_streamers': beam_streamers
     }
 
 @app.route('/dashboard/<int:server_id>/update_streamers', methods=['POST'])
 @plugin_method
 def update_streamers(server_id):
+    """
+       Data repr:
+           Streamers.*:beam_streamers:{streamer_name}:guilds
+               set of guilds that a streamer has to be announced in
+           Streamers.*:beam_streamers
+               set of every beam streamer
+           Streamers.{guild_id}:beam_streamers
+               set of beam_streamers a guild has
+    """
     announcement_channel = request.form.get('announcement_channel')
     announcement_msg = request.form.get('announcement_msg')
     if announcement_msg == "":
         flash('The announcement message should not be empty!', 'warning')
         return redirect(url_for('plugin_streamers', server_id=server_id))
 
-    twitch_streamers = strip(request.form.get('streamers').split(','))
-    hitbox_streamers = strip(request.form.get('hitbox_streamers').split(','))
+    # Announcement stuff
+    db.set('Streamers.{}:announcement_channel'.format(server_id),
+           announcement_channel)
+    db.set('Streamers.{}:announcement_msg'.format(server_id), announcement_msg)
 
-    new_config = {'announcement_channel': announcement_channel,
-                  'announcement_message': announcement_msg,
-                  'twitch_streamers': twitch_streamers,
-                  'hitbox_streamers': hitbox_streamers}
-    streamers.patch_config(server_id, new_config)
+    STREAMERS_TYPES = ('streamers', 'hitbox_streamers')
+    for s_type in STREAMERS_TYPES:
+        key = 'Streamers.{}:{}'.format(server_id, s_type)
+        def corrector(streamer):
+            r = re.compile('((https?:\/\/)?(www\.)?[a-zA-Z]*\.[a-zA-Z]*\/)?(.*)')
+            m = r.match(streamer).groups()
+            if m[-1]:
+                streamer = m[-1]
+            return streamer.lower().replace(' ', '_')
+        old_streamers = list(db.smembers(key))
+        new_streamers = list(map(corrector,
+                                 request.form.get(s_type).split(',')))
+
+        # delete every old streamer from guild
+        key = 'Streamers.{}:{}'.format(server_id, s_type)
+        db.delete(key)
+        # add every new streamer to guild
+        db.sadd(key, *new_streamers)
+
+        # add new_streamers to streamers list
+        key = 'Streamers.*:{}'.format(s_type)
+        db.sadd(key, *new_streamers)
+
+        key_fmt = 'Streamers.*:{}'.format(s_type)
+        key_fmt = key_fmt + ':{}:guilds'
+
+        # remove guild to every old streamer guild list
+        for streamer in old_streamers:
+            db.srem(key_fmt.format(streamer), server_id)
+        # add guild to every new streamer guild list
+        for streamer in new_streamers:
+            db.sadd(key_fmt.format(streamer), server_id)
 
     flash('Configuration updated with success!',
           'success')
@@ -1492,16 +1406,14 @@ def update_streamers(server_id):
 """
 
 
-from mee6.plugins import Reddit
-reddit = Reddit(in_bot=False)
-
+SUBREDDIT_RX = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9_]{2,20}\Z")
 @app.route('/dashboard/<int:server_id>/reddit')
 @plugin_page('Reddit')
 def plugin_reddit(server_id):
+    subs = db.smembers('Reddit.{}:subs'.format(server_id))
+    subs = ','.join(subs)
     guild_channels = get_guild_channels(server_id, voice=False)
-    config = reddit.get_config(server_id)
-    subs = ','.join(config['subreddits'])
-    display_channel = config['announcement_channel']
+    display_channel = db.get('Reddit.{}:display_channel'.format(server_id))
     return {
         'subs': subs,
         'display_channel': display_channel,
@@ -1509,15 +1421,32 @@ def plugin_reddit(server_id):
     }
 
 
+subr = re.compile('(((https?:\/\/)?(www\.)?[a-zA-Z]*\.[a-zA-Z]*\/)|\/?r\/)?(.*)')
 @app.route('/dashboard/<int:server_id>/update_reddit', methods=['POST'])
 @plugin_method
 def update_reddit(server_id):
-    display_channel = request.form.get('display_channel')
-    subs = strip(request.form.get('subs').split(','))
+    subs = db.smembers('Reddit.{}:subs'.format(server_id))
+    for s in subs:
+        if s == '':
+            continue
+        db.srem('Reddit.#:sub:{}:guilds'.format(s),
+                server_id)
 
-    config_patch = {'announcement_channel': display_channel,
-                    'subreddits': subs}
-    reddit.patch_config(server_id, config_patch)
+    display_channel = request.form.get('display_channel')
+    subs = request.form.get('subs').split(',')
+    db.set('Reddit.{}:display_channel'.format(server_id), display_channel)
+    db.delete('Reddit.{}:subs'.format(server_id))
+    for sub in subs:
+        if sub != "":
+            s = subr.match(sub).groups()[-1].lower()
+            if s.endswith('/'):
+                s = s[:-1]
+            s = s.split('/')[-1]
+            if not SUBREDDIT_RX.match(s): continue
+            db.sadd('Reddit.#:subs', s)
+            db.sadd('Reddit.#:sub:{}:guilds'.format(s),
+                    server_id)
+            db.sadd('Reddit.{}:subs'.format(server_id), s)
 
     flash('Configuration updated with success!', 'success')
     return redirect(url_for('plugin_reddit', server_id=server_id))
@@ -1557,10 +1486,7 @@ def plugin_moderator(server_id):
 @plugin_method
 def update_moderator(server_id):
     moderator_roles = request.form.get('moderator_roles').split(',')
-
-    banned_words = strip(request.form.get('banned_words').split(','))
-    banned_words = ','.join(banned_words)
-
+    banned_words = request.form.get('banned_words')
     db.delete('Moderator.{}:roles'.format(server_id))
     for role in moderator_roles:
         if role != "":
@@ -1682,15 +1608,4 @@ def setup_logging():
 
 if __name__ == '__main__':
     app.debug = True
-    from os import path
-
-    extra_dirs = ['templates',]
-    extra_files = extra_dirs[:]
-    for extra_dir in extra_dirs:
-        for dirname, dirs, files in os.walk(extra_dir):
-            for filename in files:
-                filename = path.join(dirname, filename)
-                if path.isfile(filename):
-                    extra_files.append(filename)
-
-    app.run(extra_files=extra_files)
+    app.run()

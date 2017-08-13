@@ -13,7 +13,7 @@
 							<label class="control-label" for="announcement_channel">Announcement Channel</label>
 							<select class="form-control input-lg" id="announcement_channel" name="announcement_channel">
 								{% for channel in guild_channels %}
-									<option value="{{channel.id}}"{%if channel.id == announcement_channel%} selected{%endif%}>#{{channel.name}}</option>
+									<option value="{{channel.id}}"{%if channel.id == announcement_channel.id%} selected{%endif%}>#{{channel.name}}</option>
 								{% endfor %}
 							</select>
 							<div class="well well-sm">
@@ -22,7 +22,7 @@
 							<label class="control-label" for="announcement_msg">Announcement message</label>
 							<input class="form-control input-lg" name="announcement_msg" value="{{announcement_msg}}" type="text" id="announcement_msg">
 							<div class="well well-sm">
-								<strong>Tips:</strong> Use <strong>{streamer}</strong> for the streamer name and <strong>{link}</strong> for their channel link.
+								<strong>Tips:</strong> Use <strong>{streamer}</strong> for the streamer name and <strong>{link}</strong> for his channel link.
 							</div>
 							<h3>Twitch Channels</h3>
 							<input type="text" data-role="tagsinput" value="{{streamers}}" name="streamers" data-role="tagsinput"><br />
