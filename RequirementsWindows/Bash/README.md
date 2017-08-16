@@ -18,8 +18,8 @@
 
 2. Select "Get"
 > **Troubleshooting: Installation failed with error 0x80070003**
-> The Windows Subsystem for Linux only runs on your system drive (usually this is your C: drive). Make sure that new apps are stored on your system drive.
-> Open **Settings** -> **Storage** -> **More Storage Settings: Change where new content is saved**
+> * The Windows Subsystem for Linux only runs on your system drive (usually this is your C: drive). Make sure that new apps are stored on your system drive.
+> * Open **Settings** -> **Storage** -> **More Storage Settings: Change where new content is saved**
 > ![Settings - New Apps](https://i-msdn.sec.s-msft.com/en-us/commandline/wsl/media/appstorage.png)
 
 
